@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta, date
+
 from address_book import AddressBook
 from record import Record
-
+from fields import DATE_FORMAT
 
 def input_error(func):
     def inner(*args, **kwargs):
@@ -16,39 +18,32 @@ def input_error(func):
             return f"An error occurred: {str(e)}"
     return inner
 
+
 def parse_input(user_input: str):
     """Parse user input into command and arguments."""
     cmd, *args = user_input.split()
     cmd = cmd.strip().lower()
     return cmd, *args
 
+
 @input_error
-# def add_contact(args, contacts: dict):
-#     """Add a new contact."""
-#     name, phone = args
-#     contacts[name] = phone
-#     return "Contact added."
 def add_contact(args, book: AddressBook):
+    if len(args) < 2:
+        raise ValueError("Please provide both name and phone.")
     name, phone, *_ = args
     record = book.find(name)
-    message = "Contact updated."
+    
     if record is None:
         record = Record(name)
         book.add_record(record)
-        message = "Contact added."
-    if phone:
         record.add_phone(phone)
-    return message
+        return f"Contact {name} added with phone {phone}."
+    else:
+        record.add_phone(phone)
+        return f"Phone {phone} added to existing contact {name}."
+
 
 @input_error
-# def change_contact(args, contacts: dict):
-#     """Change an existing contact's phone number."""
-#     name, phone = args
-#     existing_phone = contacts.get(name)
-#     if not existing_phone:
-#         return f"Contact with name {name} does not exist."
-#     contacts[name] = phone
-#     return "Contact updated."
 def change_contact(args, book: AddressBook):
     """Change an existing contact's phone number."""
     name, old_phone, new_phone = args
@@ -67,15 +62,7 @@ def change_contact(args, book: AddressBook):
         return f"Error while changing phone: {e}"
 
 
-
 @input_error
-# def show_phone(args, contacts: dict):
-#     """Show a contact's phone number."""
-#     [name] = args
-#     existing_phone = contacts.get(name)
-#     if not existing_phone:
-#         return f"Contact with name {name} does not exist."
-#     return existing_phone
 def show_phone(args, book: AddressBook):
     """Show a contact's phone number."""
     name, *_ = args
@@ -88,17 +75,10 @@ def show_phone(args, book: AddressBook):
     if not contact:
         return f"Contact with name {name} does not exist."
 
-    """ return f"Phone number for contact {name}: {contact.phones[0].value}" """
-    return f"Phone number for contact {name}: {contact.phone}"
+    return f"Phone number for contact {name}: {contact}"
 
 
 @input_error
-# def show_all(contacts: dict):
-#     """Show all contacts."""
-#     if not contacts:
-#         return "There are no contacts in the list."
-#     result = [f"{name}: {phone}" for name, phone in contacts.items()]
-#     return "\n".join(result)
 def show_all(book: AddressBook):
     """Show all contacts."""
     if not book.data.keys():
@@ -110,10 +90,127 @@ def show_all(book: AddressBook):
 
     return "\n".join(result)
 
+
+@input_error
+def add_birthday(args, book: AddressBook):
+    name, birthdate = args
+    if not name or not birthdate:
+        raise ValueError('You need to specify name and birthdate')
+
+    existing_contact = book.find(name)
+    if not existing_contact:
+        return f'There is no contact with name {name}'
+    
+    existing_contact.add_birthday(birthdate)
+    return f'birthday {birthdate} successfully added to contact {name}'
+
+
+@input_error
+def show_birthday(args, book):
+    name, *_ = args
+    if not name:
+        raise ValueError('You need to specify name')
+
+    existing_contact = book.find(name)
+    if not existing_contact:
+        return f'There is no contact with name {name}'
+    
+    birthdate = existing_contact.get_birthday()
+    if not birthdate:
+        return f"{name}'s birthdate is not set"
+
+    birthdate = datetime.strftime(existing_contact.get_birthday(), DATE_FORMAT)
+    return f"{name}'s birthday is {birthdate}"
+
+@input_error
+def birthdays(book: AddressBook):
+    upcoming_birthdays = book.get_upcoming_birthdays()
+    if len(upcoming_birthdays) == 0:
+        return 'No contacts with upcoming birthdays'
+    
+    result_strings = []
+    for item in upcoming_birthdays:
+        result_strings.append(f"name {item['name']}, congratulation date: {item['congratulation_date']}")
+    
+    return '\n'.join(result_strings)
+
 def main():
     print("Welcome to the assistant bot!")
-    print("Type 'hello' to start or 'exit' to quit.")
     book = AddressBook()
+
+# test
+    """ print('Add contact')
+    args = 'Maria', '0123456789'
+    print(add_contact(args, book))
+    print(show_all(book))
+    print()
+    
+    print('Update contact if there is such already')
+    args = 'Maria', '0505555555', 
+    print(add_contact(args, book))
+    print(show_all(book))
+    print()
+
+    print('Update contact if there is such already')
+    args = 'Maria', '0505555555', '1111111111'
+    print(change_contact(args, book))
+    print(show_all(book))
+    print()
+
+    print('Update contact if there is no such contact')
+    args = 'Mari', '0505555555', '1111111111'
+    print(change_contact(args, book))
+    print(show_all(book))
+    print()
+
+    print('Show existing contact')
+    args = 'Maria',
+    print(show_phone(args, book))
+    print(show_all(book))
+    print()
+
+    print('Show non existing contact')
+    args = 'Mari',
+    print(show_phone(args, book))
+    print(show_all(book))
+    print()
+
+    print('Add birthdate to existing contact')
+    args = 'Maria', '1985.01.04'
+    print(add_birthday(args, book))
+    print(show_all(book))
+    print()
+
+    print('Add birthdate to existing contact in incoorect format')
+    marias_birthdate = date.today() + timedelta(days=2)
+    args = 'Maria', datetime.strftime(marias_birthdate, DATE_FORMAT)
+    print(add_birthday(args, book))
+    print(show_all(book))
+    print()
+
+    print('Add birthdate to non existing contact')
+    args = 'Mari', '1990.01.27'
+    print(add_birthday(args, book))
+    print(show_all(book))
+    print()
+
+    print('Show birthdate of non existing contact')
+    args = 'Mari',
+    print(show_birthday(args, book))
+    print(show_all(book))
+    print()
+
+    print('Show birthdate of it is not set for the contact')
+    args = 'Anton', '0505555555'
+    print(add_contact(args, book))
+    args = 'Anton',
+    print(show_birthday(args, book))
+    print(show_all(book))
+    print()
+    
+    print('Show future birthdays')
+    print(birthdays(book)) """
+
 
     while True:
         user_input = input("Enter command: ").strip()
@@ -128,22 +225,19 @@ def main():
         elif command == 'hello':
             print('How can I help you?')
         elif command == 'add':
-            print("Enter the argument for the command (name and phone):")
-            user_input = input("Enter command: ").strip()
-            command, *args = parse_input(user_input)
             print(add_contact(args,  book))
         elif command == 'change':
-            print("Enter the argument for the command (name and phone):")
-            user_input = input("Enter command: ").strip()
-            command, *args = parse_input(user_input)
             print(change_contact(args,  book))
         elif command == 'phone':
-            print("Enter the argument for the command (name):")
-            user_input = input("Enter command: ").strip()
-            command, *args = parse_input(user_input)
             print(show_phone(args,  book))
         elif command == 'all':
             print(show_all( book))
+        elif command == "add-birthday":
+            print(add_birthday(args, book))
+        elif command == "show-birthday":
+            print(show_birthday(args, book))
+        elif command == "birthdays":
+            print(birthdays(book))
         else:
             print("Invalid command.")
 

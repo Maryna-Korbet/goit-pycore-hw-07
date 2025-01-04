@@ -1,9 +1,12 @@
-from fields import Name, Phone
+from datetime import datetime
+from fields import Name, Phone, Birthday
+from fields import DATE_FORMAT
 
 class Record:
     def __init__(self, name: str) -> None:
         self.name = Name(name)
         self.phones = []
+        self.birthday = None
 
     def add_phone(self, phone: str) -> None:
         phone = phone.strip()
@@ -31,6 +34,18 @@ class Record:
         if found_phone is None:
             raise Exception(f"Phone {phone} not found in contacts")
         return found_phone
+
+    def add_birthday(self, birthdate: str) -> None:
+        try:
+            self.birthday = Birthday(birthdate)
+        except ValueError:
+            raise ValueError(f"Birthdate must match format {DATE_FORMAT}.")
+    
+    def get_birthday(self):
+        return datetime.strftime(self.birthday.value, DATE_FORMAT) if self.birthday else None
+
+    def show_phones(self) -> str:
+        return '; '.join(p.value for p in self.phones)
 
     def __str__(self):
         phones = "; ".join(p.value for p in self.phones) if self.phones else "No phones"
